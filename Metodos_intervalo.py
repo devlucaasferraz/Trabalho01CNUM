@@ -2,7 +2,7 @@ import math
 import time
 
 
-def bisseccao(f, a, b, tol=1e-6, max_iter=100):
+def bisseccao(f, a, b, tolerancia=1e-6, max_iter=100):
     """Método da Bissecção: divide o intervalo [a, b] ao meio a cada iteração.
     Retorna (raiz, iterações, f(raiz)). Se [a, b] for inválido, retorna (None, 0, None)."""
     fa, fb = f(a), f(b)
@@ -13,14 +13,14 @@ def bisseccao(f, a, b, tol=1e-6, max_iter=100):
     for i in range(1, max_iter + 1):
         x = (a + b) / 2                   # ponto médio
         fx = f(x)
-        if abs(fx) < tol:                 # critério de parada: |f(x)| < tol (ex 10^-6)
+        if abs(fx) < tolerancia:                 # critério de parada: |f(x)| < tolerancia (ex 10^-6)
             break
         if fa * fx < 0: b = x             # raiz em [a, x]
         else: a, fa = x, fx               # raiz em [x, b]
     return x, i, fx
 
 
-def falsa_posicao(f, a, b, tol=1e-6, max_iter=100):
+def falsa_posicao(f, a, b, tolerancia=1e-6, max_iter=100):
     """Método da Falsa Posição: usa a reta que liga (a, f(a)) a (b, f(b)).
     Retorna (raiz, iterações, f(raiz)). Se [a, b] for inválido, retorna (None, 0, None)."""
     fa, fb = f(a), f(b)
@@ -31,7 +31,7 @@ def falsa_posicao(f, a, b, tol=1e-6, max_iter=100):
     for i in range(1, max_iter + 1):
         x = (a * fb - b * fa) / (fb - fa)  # onde a reta cruza o eixo x
         fx = f(x)
-        if abs(fx) < tol:                  # critério de parada: |f(x)| < tol (ex 10^-6)
+        if abs(fx) < tolerancia:                  # critério de parada: |f(x)| < tolerancia (ex 10^-6)
             break
         if fa * fx < 0: b, fb = x, fx      # raiz em [a, x]
         else: a, fa = x, fx                # raiz em [x, b]
@@ -57,17 +57,17 @@ TESTES = [
 ]
 
 
-def executar(nome, metodo, f, a, b, tol=1e-6, repeticoes=1000):
+def executar(nome, metodo, f, a, b, tolerancia=1e-6, repeticoes=1000):
     """Roda o método, mede o tempo médio (ms) e imprime uma linha de resultado."""
     inicio = time.perf_counter()
     for _ in range(repeticoes):
-        raiz, iteracoes, residuo = metodo(f, a, b, tol)
+        raiz, iteracoes, residuo = metodo(f, a, b, tolerancia)
     tempo = (time.perf_counter() - inicio) * 1000 / repeticoes
 
     if raiz is None:
         print(f"{nome:<14}| Intervalo inválido: f(a) e f(b) precisam ter sinais opostos")
         return
-    aviso = "" if abs(residuo) < tol else "  (não convergiu)"
+    aviso = "" if abs(residuo) < tolerancia else "  (não convergiu)"
     print(f"{nome:<14}| Raiz: {raiz:.6f} | Iterações: {iteracoes:2} | |f(x)|: {abs(residuo):.2e} | Tempo: {tempo:.4f} ms{aviso}")
 
 

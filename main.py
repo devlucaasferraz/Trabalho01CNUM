@@ -148,4 +148,17 @@ def menu():
 
 
 if __name__ == "__main__":
-    menu()
+    # Inicia a Interface Web Interativa (estilo shadcn/ui) por padrão.
+    # Caso passe o argumento --cli, executa no terminal.
+    if "--cli" in sys.argv or "-c" in sys.argv:
+        menu()
+    else:
+        try:
+            from servidor_web import iniciar_servidor
+            iniciar_servidor()
+        except KeyboardInterrupt:
+            print("\nSimulador encerrado.")
+        except Exception as e:
+            print(f"Aviso: Não foi possível iniciar a interface web ({e}).")
+            print("Iniciando em modo terminal (CLI)...\n")
+            menu()

@@ -104,11 +104,116 @@ def exportar_para_excel(bateria_resultados, nome_arquivo="tabelas_comparativas.x
 
         linha_atual += 2  # Espaçamento entre tabelas
 
-    # Ajusta largura das colunas
+    # Ajusta largura das colunas da folha consolidada
     larguras = {2: 18, 3: 18, 4: 12, 5: 14, 6: 18, 7: 18}
     for col_idx, larg in larguras.items():
         col_letter = get_column_letter(col_idx)
         ws_geral.column_dimensions[col_letter].width = larg
+
+    # 2. Folha com Histórico Detalhado de Passos
+    try:
+        from simulador_passos import (
+            gerar_passos_bisseccao,
+            gerar_passos_falsa_posicao,
+            gerar_passos_newton,
+            gerar_passos_secante
+        )
+        from main import get_problemas_padrao
+        probs = get_problemas_padrao()
+
+        ws_passos = wb.create_sheet(title="Histórico de Passos")
+        ws_passos.views.sheetView[0].showGridLines = True
+        lp = 2
+
+        for prob in probs:
+            nome_p = prob["nome"]
+            f = prob["f"]
+            df = prob["df"]
+            a = prob["a"]
+            b = prob["b"]
+            x0_n = prob["x0_newton"]
+            x0_s = prob["x0_sec"]
+            x1_s = prob["x1_sec"]
+
+            ws_passos.merge_cells(start_row=lp, start_column=2, end_row=lp, end_column=6)
+            c_p_tit = ws_passos.cell(row=lp, column=2, value=nome_p.upper())
+            c_p_tit.font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
+            c_p_tit.fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+            c_p_tit.alignment = alinhamento_centro
+            ws_passos.row_dimensions[lp].height = 26
+            lp += 1
+
+            metodos_passos = [
+                ("Bissecção", gerar_passos_bisseccao(f, a, b)[0]),
+                ("Falsa Posição", gerar_passos_falsa_posicao(f, a, b)[0]),
+                ("Newton-Raphson", gerar_passos_newton(f, df, x0_n)[0]),
+                ("Secante", gerar_passos_secante(f, x0_s, x1_s)[0])
+            ]
+
+            for nome_met, lista_p in metodos_passos:
+                ws_passos.merge_cells(start_row=lp, start_column=2, end_row=lp, end_column=6)
+                c_m_tit = ws_passos.cell(row=lp, column=2, value=f"Método: {nome_met} ({len(lista_p)} iterações)")
+                c_m_tit.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+                c_m_tit.fill = PatternFill(start_color="374151", end_color="374151", fill_type="solid")
+                c_m_tit.alignment = alinhamento_esquerda
+                ws_passos.row_dimensions[lp].height = 22
+                lp += 1
+
+                hdrs = ["Iteração", "Estimativa (x)", "f(x)", "Precisão |f(x)|", "Detalhes / Intervalo"]
+                for c_idx, h in enumerate(hdrs, start=2):
+                    cell = ws_passos.cell(row=lp, column=c_idx, value=h)
+                    cell.font = fonte_negrito
+                    cell.fill = PatternFill(start_color="F3F4F6", end_color="F3F4F6", fill_type="solid")
+                    cell.alignment = alinhamento_centro
+                    cell.border = borda_fina
+                ws_passos.row_dimensions[lp].height = 20
+                lp += 1
+
+                for p_item in lista_p:
+                    c_it = ws_passos.cell(row=lp, column=2, value=p_item.get("iter", 0))
+                    c_it.alignment = alinhamento_centro
+                    c_it.font = fonte_normal
+                    c_it.border = borda_fina
+
+                    x_val = p_item.get("x_novo", p_item.get("x", p_item.get("x_prox", 0.0)))
+                    c_x = ws_passos.cell(row=lp, column=3, value=x_val)
+                    c_x.alignment = alinhamento_direita
+                    c_x.font = fonte_normal
+                    c_x.border = borda_fina
+                    c_x.number_format = "0.00000000"
+
+                    fx_val = p_item.get("fx_novo", p_item.get("fx", 0.0))
+                    c_fx = ws_passos.cell(row=lp, column=4, value=fx_val)
+                    c_fx.alignment = alinhamento_direita
+                    c_fx.font = fonte_normal
+                    c_fx.border = borda_fina
+                    c_fx.number_format = "0.00E+00"
+
+                    res_val = p_item.get("residuo", abs(fx_val))
+                    c_res = ws_passos.cell(row=lp, column=5, value=res_val)
+                    c_res.alignment = alinhamento_direita
+                    c_res.font = fonte_normal
+                    c_res.border = borda_fina
+                    c_res.number_format = "0.00E+00"
+
+                    c_det = ws_passos.cell(row=lp, column=6, value=p_item.get("detalhes", ""))
+                    c_det.alignment = alinhamento_esquerda
+                    c_det.font = fonte_normal
+                    c_det.border = borda_fina
+
+                    ws_passos.row_dimensions[lp].height = 18
+                    lp += 1
+
+                lp += 1
+            lp += 2
+
+        larguras_passos = {2: 12, 3: 18, 4: 16, 5: 18, 6: 28}
+        for col_idx, larg in larguras_passos.items():
+            col_letter = get_column_letter(col_idx)
+            ws_passos.column_dimensions[col_letter].width = larg
+
+    except Exception as e:
+        print(f"Aviso: Não foi possível gerar folha detalhada ({e})")
 
     wb.save(nome_arquivo)
     print(f"Planilha Excel salva com sucesso em: {nome_arquivo}")

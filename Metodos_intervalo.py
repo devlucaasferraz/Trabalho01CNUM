@@ -8,12 +8,12 @@ def bisseccao(f, a, b, tol=1e-6, max_iter=100):
     fa, fb = f(a), f(b)
     if fa == 0: return a, 0, fa           # raiz exata em a
     if fb == 0: return b, 0, fb           # raiz exata em b
-    if fa * fb > 0: return None, 0, None  # sem mudança de sinal: sem garantia de raiz
+    if fa * fb > 0: return None, 0, None  # se os sinais forem iguais, não há garantia de raiz
 
     for i in range(1, max_iter + 1):
         x = (a + b) / 2                   # ponto médio
         fx = f(x)
-        if abs(fx) < tol:                 # critério de parada: |f(x)| < tol
+        if abs(fx) < tol:                 # critério de parada: |f(x)| < tol (ex 10^-6)
             break
         if fa * fx < 0: b = x             # raiz em [a, x]
         else: a, fa = x, fx               # raiz em [x, b]
@@ -26,12 +26,12 @@ def falsa_posicao(f, a, b, tol=1e-6, max_iter=100):
     fa, fb = f(a), f(b)
     if fa == 0: return a, 0, fa           # raiz exata em a
     if fb == 0: return b, 0, fb           # raiz exata em b
-    if fa * fb > 0: return None, 0, None  # sem mudança de sinal: sem garantia de raiz
+    if fa * fb > 0: return None, 0, None  # se os sinais forem iguais, não há garantia de raiz
 
     for i in range(1, max_iter + 1):
         x = (a * fb - b * fa) / (fb - fa)  # onde a reta cruza o eixo x
         fx = f(x)
-        if abs(fx) < tol:                  # critério de parada: |f(x)| < tol
+        if abs(fx) < tol:                  # critério de parada: |f(x)| < tol (ex 10^-6)
             break
         if fa * fx < 0: b, fb = x, fx      # raiz em [a, x]
         else: a, fa = x, fx                # raiz em [x, b]
@@ -60,7 +60,7 @@ TESTES = [
 def executar(nome, metodo, f, a, b, tol=1e-6, repeticoes=1000):
     """Roda o método, mede o tempo médio (ms) e imprime uma linha de resultado."""
     inicio = time.perf_counter()
-    for _ in range(repeticoes): 
+    for _ in range(repeticoes):
         raiz, iteracoes, residuo = metodo(f, a, b, tol)
     tempo = (time.perf_counter() - inicio) * 1000 / repeticoes
 

@@ -1,6 +1,6 @@
 import math
 import sys
-from Metodos_intervalo import bisseccao, falsa_posicao
+from metodos_intervalo import bisseccao, falsa_posicao
 from metodos_abertos import newton_raphson, secante
 from medicao import executar_comparativo
 from gerador_relatorio import exportar_para_excel, gerar_graficos

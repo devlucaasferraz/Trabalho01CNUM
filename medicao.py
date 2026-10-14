@@ -1,5 +1,5 @@
 import time
-from Metodos_intervalo import bisseccao, falsa_posicao
+from metodos_intervalo import bisseccao, falsa_posicao
 from metodos_abertos import newton_raphson, secante
 
 def medir_metodo(nome_metodo, funcao_metodo, *args, **kwargs):

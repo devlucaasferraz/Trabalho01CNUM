@@ -60,7 +60,7 @@ TESTES = [
 def executar(nome, metodo, f, a, b, tol=1e-6, repeticoes=1000):
     """Roda o método, mede o tempo médio (ms) e imprime uma linha de resultado."""
     inicio = time.perf_counter()
-    for _ in range(repeticoes):  # média de várias execuções (uma só é muito ruidosa)
+    for _ in range(repeticoes): 
         raiz, iteracoes, residuo = metodo(f, a, b, tol)
     tempo = (time.perf_counter() - inicio) * 1000 / repeticoes
 

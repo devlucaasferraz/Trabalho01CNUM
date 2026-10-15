@@ -443,13 +443,13 @@ HTML_SHADCN = """<!DOCTYPE html>
           <span class="text-xs font-semibold text-foreground flex items-center gap-1.5">
             <i data-lucide="bar-chart-2" class="h-3.5 w-3.5 text-blue-500"></i> Iterações por Método
           </span>
-          <div id="modalChartIter" style="height: 180px;" class="w-full"></div>
+          <div id="modalChartIter" style="height: 195px;" class="w-full"></div>
         </div>
         <div class="rounded-lg border border-border bg-muted/20 p-3 flex flex-col gap-1.5">
           <span class="text-xs font-semibold text-foreground flex items-center gap-1.5">
             <i data-lucide="clock" class="h-3.5 w-3.5 text-amber-500"></i> Tempo de Execução (ms)
           </span>
-          <div id="modalChartTempo" style="height: 180px;" class="w-full"></div>
+          <div id="modalChartTempo" style="height: 195px;" class="w-full"></div>
         </div>
       </div>
 
@@ -522,9 +522,48 @@ HTML_SHADCN = """<!DOCTYPE html>
     let nomeProblemaAtual = PRESETS[0].nome;
 
     // Inicialização ao carregar página
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", async () => {
       lucide.createIcons();
-      solicitarSimulacao();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('f')) {
+        setModoEntrada('personalizado');
+        document.getElementById("inpF").value = urlParams.get('f');
+        if (urlParams.has('df')) document.getElementById("inpDf").value = urlParams.get('df');
+        if (urlParams.has('a')) document.getElementById("inpA").value = urlParams.get('a');
+        if (urlParams.has('b')) document.getElementById("inpB").value = urlParams.get('b');
+        if (urlParams.has('x0_n')) document.getElementById("inpX0N").value = urlParams.get('x0_n');
+        if (urlParams.has('x0_s')) document.getElementById("inpX0S").value = urlParams.get('x0_s');
+        if (urlParams.has('x1_s')) document.getElementById("inpX1S").value = urlParams.get('x1_s');
+        if (urlParams.has('tol')) document.getElementById("inpTol").value = urlParams.get('tol');
+        if (urlParams.has('max_iter')) document.getElementById("inpMax").value = urlParams.get('max_iter');
+        if (urlParams.has('nome')) nomeProblemaAtual = urlParams.get('nome');
+      } else if (urlParams.has('preset')) {
+        const pIdx = parseInt(urlParams.get('preset'));
+        if (!isNaN(pIdx) && PRESETS[pIdx]) {
+          selecionarPreset(pIdx);
+        }
+      }
+      if (urlParams.has('metodo')) {
+        const m = urlParams.get('metodo');
+        await setMetodo(m);
+      } else {
+        await solicitarSimulacao();
+      }
+
+      if (urlParams.has('zoom')) {
+        setModoZoom(urlParams.get('zoom'));
+      }
+      if (urlParams.has('passo')) {
+        const pStep = parseInt(urlParams.get('passo'));
+        if (!isNaN(pStep)) {
+          irParaPasso(pStep);
+        }
+      }
+
+      if (urlParams.has('modal')) {
+        await abrirModalComparativo();
+      }
 
       // Permitir submeter ao pressionar Enter em qualquer campo
       document.querySelectorAll("#inpF, #inpDf, #inpA, #inpB, #inpX0N, #inpX0S, #inpX1S, #inpTol, #inpMax").forEach(el => {
@@ -668,7 +707,7 @@ HTML_SHADCN = """<!DOCTYPE html>
           el.className = "py-1.5 rounded-md transition-all text-center text-muted-foreground hover:text-foreground";
         }
       });
-      reiniciarSimulacao();
+      return reiniciarSimulacao();
     }
 
     // Ação acionada pelo botão 'Simular Função Editada'
@@ -759,7 +798,7 @@ HTML_SHADCN = """<!DOCTYPE html>
     }
 
     function reiniciarSimulacao() {
-      solicitarSimulacao();
+      return solicitarSimulacao();
     }
 
     function avancarPasso() {
@@ -933,7 +972,7 @@ HTML_SHADCN = """<!DOCTYPE html>
       }
     }
 
-    // Renderização do Gráfico com Plotly.js (Trabalho Ostensivo e Pedagógico)
+    // Renderização do Gráfico com Plotly.js (Refinamento Visual e Rigor Matemático)
     function desenharGraficoPasso(idx) {
       const isDark = document.documentElement.classList.contains("dark");
       const bgColor = isDark ? "#09090b" : "#ffffff";
@@ -945,7 +984,7 @@ HTML_SHADCN = """<!DOCTYPE html>
       const annotations = [];
       const shapes = [];
 
-      // 1. Curva f(x)
+      // 1. Curva Principal f(x)
       if (dadosSimulacao.curva_x && dadosSimulacao.curva_x.length > 0) {
         traces.push({
           x: dadosSimulacao.curva_x,
@@ -954,11 +993,12 @@ HTML_SHADCN = """<!DOCTYPE html>
           mode: 'lines',
           name: 'f(x)',
           line: { color: isDark ? '#38bdf8' : '#0284c7', width: 3 },
-          hoverinfo: 'x+y'
+          hoverinfo: 'x+y',
+          showlegend: true
         });
       }
 
-      // 2. Linha do Eixo Y=0
+      // 2. Linha de Referência do Eixo Y=0
       if (dadosSimulacao.curva_x && dadosSimulacao.curva_x.length > 0) {
         const xMinAll = Math.min(...dadosSimulacao.curva_x);
         const xMaxAll = Math.max(...dadosSimulacao.curva_x);
@@ -968,124 +1008,216 @@ HTML_SHADCN = """<!DOCTYPE html>
           type: 'scatter',
           mode: 'lines',
           name: 'Eixo y = 0',
-          line: { color: isDark ? '#52525b' : '#a1a1aa', width: 1.5, dash: 'dash' },
+          line: { color: isDark ? '#52525b' : '#94a3b8', width: 1.5, dash: 'dash' },
           hoverinfo: 'none',
           showlegend: false
         });
       }
 
-      // 3. Elementos geométricos da iteração ativa
+      // 3. Histórico Sutil ("Ghost Traces") para Newton e Secante
+      if (idx > 1 && dadosSimulacao.passos && dadosSimulacao.passos.length > 0) {
+        if (modoAtual === "Newton-Raphson") {
+          for (let k = 0; k < idx - 1; k++) {
+            const pk = dadosSimulacao.passos[k];
+            const x0k = pk.x;
+            const fx0k = pk.fx;
+            const dfx0k = pk.dfx;
+            const x1k = pk.x_prox;
+            const dxk = (x1k - x0k);
+            const xSk = x0k - dxk * 0.15;
+            const xEk = x1k + dxk * 0.1;
+            const ySk = fx0k + dfx0k * (xSk - x0k);
+            const yEk = fx0k + dfx0k * (xEk - x0k);
+
+            traces.push({
+              x: [xSk, x0k, x1k, xEk],
+              y: [ySk, fx0k, 0, yEk],
+              type: 'scatter',
+              mode: 'lines',
+              name: 'Passos anteriores',
+              line: { color: isDark ? 'rgba(244, 63, 94, 0.25)' : 'rgba(244, 63, 94, 0.22)', width: 1.2, dash: 'dot' },
+              hoverinfo: 'none',
+              showlegend: (k === 0)
+            });
+          }
+        } else if (modoAtual === "Secante") {
+          for (let k = 0; k < idx - 1; k++) {
+            const pk = dadosSimulacao.passos[k];
+            const xek = pk.xe;
+            const xdk = pk.xd;
+            const fxek = pk.fxe;
+            const fxdk = pk.fxd;
+            const xmk = pk.x;
+            const den = xdk - xek;
+            const mSec = Math.abs(den) > 1e-12 ? (fxdk - fxek) / den : 0;
+            const pts = [xek, xdk, xmk];
+            const minX = Math.min(...pts);
+            const maxX = Math.max(...pts);
+            const sp = Math.max((maxX - minX) * 0.15, 0.05);
+            const xS = minX - sp;
+            const xE = maxX + sp;
+
+            traces.push({
+              x: [xS, xek, xmk, xdk, xE].sort((a,b)=>a-b),
+              y: [xS, xek, xmk, xdk, xE].sort((a,b)=>a-b).map(x => fxek + mSec * (x - xek)),
+              type: 'scatter',
+              mode: 'lines',
+              name: 'Secantes anteriores',
+              line: { color: isDark ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.22)', width: 1.2, dash: 'dot' },
+              hoverinfo: 'none',
+              showlegend: (k === 0)
+            });
+          }
+        }
+      }
+
+      // 4. Elementos Geométricos da Iteração Ativa
       if (idx > 0 && idx <= dadosSimulacao.passos.length) {
         const p = dadosSimulacao.passos[idx - 1];
 
         if (modoAtual === "Bissecção") {
           const a = p.a;
           const b = p.b;
-          const fa = p.fa || 0;
-          const fb = p.fb || 0;
+          const fa = p.fa;
+          const fb = p.fb;
           const xm = p.x;
           const fxm = p.fx;
 
-          // Região ativa sombreada entre a e b
+          const descartado = p.sub_descartado || ((fa * fxm < 0) ? [xm, b] : [a, xm]);
+          const mantido = p.sub_mantido || ((fa * fxm < 0) ? [a, xm] : [xm, b]);
+
+          const descX0 = Math.min(descartado[0], descartado[1]);
+          const descX1 = Math.max(descartado[0], descartado[1]);
+          const mantX0 = Math.min(mantido[0], mantido[1]);
+          const mantX1 = Math.max(mantido[0], mantido[1]);
+
+          // Sombreamento: Subintervalo Descartado
           shapes.push({
             type: 'rect',
-            xref: 'x',
-            yref: 'paper',
-            x0: Math.min(a, b),
-            x1: Math.max(a, b),
-            y0: 0,
-            y1: 1,
-            fillcolor: isDark ? 'rgba(14, 165, 233, 0.15)' : 'rgba(14, 165, 233, 0.10)',
-            line: { color: '#0ea5e9', width: 1, dash: 'dot' }
+            xref: 'x', yref: 'paper',
+            x0: descX0, x1: descX1,
+            y0: 0.03, y1: 0.97,
+            fillcolor: isDark ? 'rgba(239, 68, 68, 0.10)' : 'rgba(239, 68, 68, 0.08)',
+            line: { color: '#ef4444', width: 1, dash: 'dot' }
           });
 
-          // Linhas verticais pontilhadas nos limites a e b
+          // Sombreamento: Subintervalo Mantido
+          shapes.push({
+            type: 'rect',
+            xref: 'x', yref: 'paper',
+            x0: mantX0, x1: mantX1,
+            y0: 0.03, y1: 0.97,
+            fillcolor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.09)',
+            line: { color: '#10b981', width: 1.5, dash: 'solid' }
+          });
+
+          // Indicador topo: Descartado vs Retido
+          annotations.push({
+            xref: 'x', yref: 'paper',
+            x: (descX0 + descX1) / 2, y: 0.95,
+            text: '✕ Descartado',
+            showarrow: false,
+            font: { size: 10, color: '#ef4444', family: 'Inter', weight: 'bold' },
+            bgcolor: isDark ? 'rgba(69, 10, 10, 0.75)' : 'rgba(254, 242, 242, 0.85)',
+            bordercolor: '#ef4444', borderwidth: 1, borderpad: 3
+          });
+
+          annotations.push({
+            xref: 'x', yref: 'paper',
+            x: (mantX0 + mantX1) / 2, y: 0.95,
+            text: '✓ Retido (Bolzano)',
+            showarrow: false,
+            font: { size: 10, color: '#10b981', family: 'Inter', weight: 'bold' },
+            bgcolor: isDark ? 'rgba(6, 78, 59, 0.75)' : 'rgba(236, 253, 245, 0.85)',
+            bordercolor: '#10b981', borderwidth: 1, borderpad: 3
+          });
+
+          // Linhas verticais nos limites a e b
           traces.push({
-            x: [a, a],
-            y: [0, fa],
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: `Limite a = ${a.toFixed(4)}`,
+            x: [a, a], y: [0, fa],
+            type: 'scatter', mode: 'lines+markers',
+            name: `Limite a (${a.toFixed(4)})`,
             line: { color: '#0ea5e9', width: 2, dash: 'dot' },
-            marker: { color: '#0ea5e9', size: 8 }
+            marker: { color: '#0ea5e9', size: 7, symbol: 'circle' },
+            showlegend: true
           });
 
           traces.push({
-            x: [b, b],
-            y: [0, fb],
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: `Limite b = ${b.toFixed(4)}`,
+            x: [b, b], y: [0, fb],
+            type: 'scatter', mode: 'lines+markers',
+            name: `Limite b (${b.toFixed(4)})`,
             line: { color: '#f97316', width: 2, dash: 'dot' },
-            marker: { color: '#f97316', size: 8 }
+            marker: { color: '#f97316', size: 7, symbol: 'circle' },
+            showlegend: true
           });
 
-          // Faixa no eixo horizontal destacando o intervalo [a, b]
+          // Faixa no eixo destacando o novo intervalo [mantX0, mantX1]
           traces.push({
-            x: [a, b],
-            y: [0, 0],
-            type: 'scatter',
-            mode: 'lines',
-            name: `Intervalo [${a.toFixed(3)}, ${b.toFixed(3)}]`,
-            line: { color: '#06b6d4', width: 5 }
+            x: [mantX0, mantX1], y: [0, 0],
+            type: 'scatter', mode: 'lines',
+            name: 'Intervalo Ativo',
+            line: { color: '#10b981', width: 4.5 },
+            showlegend: false
           });
 
           // Projeção vertical no ponto médio xm
           traces.push({
-            x: [xm, xm],
-            y: [0, fxm],
-            type: 'scatter',
-            mode: 'lines',
-            name: `Projeção f(xm)`,
-            line: { color: '#10b981', dash: 'dash', width: 2.5 }
-          });
-
-          // Ponto na curva (xm, f(xm))
-          traces.push({
-            x: [xm],
-            y: [fxm],
-            type: 'scatter',
-            mode: 'markers',
-            name: `(xm, f(xm))`,
-            marker: { color: '#10b981', size: 8 }
+            x: [xm, xm], y: [0, fxm],
+            type: 'scatter', mode: 'lines+markers',
+            name: `Ponto Médio xₘ`,
+            line: { color: '#10b981', dash: 'dash', width: 2 },
+            marker: { color: '#10b981', size: 8, symbol: 'circle' },
+            showlegend: true
           });
 
           // Raiz xm no eixo y=0
           traces.push({
-            x: [xm],
-            y: [0],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Ponto Médio xm = ${xm.toFixed(5)}`,
-            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [xm], y: [0],
+            type: 'scatter', mode: 'markers',
+            name: 'xₘ no eixo',
+            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: false
           });
 
-          // Anotações explicativas no gráfico
+          // Badges com sinais de Bolzano
+          const sinalFa = fa >= 0 ? '+' : '−';
+          const sinalFb = fb >= 0 ? '+' : '−';
+          const sinalFxm = fxm >= 0 ? '+' : '−';
+
           annotations.push({
             x: a, y: fa,
-            text: `<b>a</b> = ${a.toFixed(4)}<br>f(a) = ${fa.toExponential(2)}`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#0ea5e9',
+            text: `<b>a</b> (${sinalFa})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#0ea5e9', arrowsize: 1,
             bgcolor: isDark ? '#0c4a6e' : '#e0f2fe', bordercolor: '#0ea5e9', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#f0f9ff' : '#0369a1' },
-            ax: -35, ay: -25
+            font: { size: 10, color: isDark ? '#f0f9ff' : '#0369a1', family: 'JetBrains Mono' },
+            ax: -25, ay: (fa >= 0 ? -20 : 20), borderpad: 3
           });
 
           annotations.push({
             x: b, y: fb,
-            text: `<b>b</b> = ${b.toFixed(4)}<br>f(b) = ${fb.toExponential(2)}`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#f97316',
+            text: `<b>b</b> (${sinalFb})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#f97316', arrowsize: 1,
             bgcolor: isDark ? '#7c2d12' : '#ffedd5', bordercolor: '#f97316', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#fff7ed' : '#c2410c' },
-            ax: 35, ay: -25
+            font: { size: 10, color: isDark ? '#fff7ed' : '#c2410c', family: 'JetBrains Mono' },
+            ax: 25, ay: (fb >= 0 ? -20 : 20), borderpad: 3
+          });
+
+          annotations.push({
+            x: xm, y: fxm,
+            text: `<b>f(xₘ)</b> (${sinalFxm})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#10b981', arrowsize: 1,
+            bgcolor: isDark ? '#064e3b' : '#d1fae5', bordercolor: '#10b981', borderwidth: 1,
+            font: { size: 10, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
+            ax: 0, ay: (fxm >= 0 ? -24 : 24), borderpad: 3
           });
 
           annotations.push({
             x: xm, y: 0,
-            text: `<b>x<sub>m</sub></b> = ${xm.toFixed(6)}<br>|f(x<sub>m</sub>)| = ${p.residuo.toExponential(2)}`,
+            text: `<b>xₘ</b> = ${xm.toFixed(5)}`,
             showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowcolor: '#10b981',
             bgcolor: isDark ? '#064e3b' : '#d1fae5', bordercolor: '#10b981', borderwidth: 1.5,
-            font: { size: 11, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
-            ax: 0, ay: 45
+            font: { size: 10, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
+            ax: 0, ay: (fxm >= 0 ? 32 : -32), borderpad: 3
           });
 
         } else if (modoAtual === "Falsa Posição") {
@@ -1096,84 +1228,118 @@ HTML_SHADCN = """<!DOCTYPE html>
           const x = p.x;
           const fx = p.fx;
 
-          // Região ativa sombreada
+          const descartado = p.sub_descartado || ((fa * fx < 0) ? [x, b] : [a, x]);
+          const mantido = p.sub_mantido || ((fa * fx < 0) ? [a, x] : [x, b]);
+
+          const descX0 = Math.min(descartado[0], descartado[1]);
+          const descX1 = Math.max(descartado[0], descartado[1]);
+          const mantX0 = Math.min(mantido[0], mantido[1]);
+          const mantX1 = Math.max(mantido[0], mantido[1]);
+
+          // Sombreamento
           shapes.push({
             type: 'rect',
             xref: 'x', yref: 'paper',
-            x0: Math.min(a, b), x1: Math.max(a, b),
-            y0: 0, y1: 1,
-            fillcolor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
-            line: { color: '#f59e0b', width: 1, dash: 'dot' }
+            x0: descX0, x1: descX1,
+            y0: 0.03, y1: 0.97,
+            fillcolor: isDark ? 'rgba(239, 68, 68, 0.10)' : 'rgba(239, 68, 68, 0.08)',
+            line: { color: '#ef4444', width: 1, dash: 'dot' }
           });
 
-          // Corda Secante completa entre (a, fa) e (b, fb)
+          shapes.push({
+            type: 'rect',
+            xref: 'x', yref: 'paper',
+            x0: mantX0, x1: mantX1,
+            y0: 0.03, y1: 0.97,
+            fillcolor: isDark ? 'rgba(16, 185, 129, 0.14)' : 'rgba(16, 185, 129, 0.09)',
+            line: { color: '#10b981', width: 1.5, dash: 'solid' }
+          });
+
+          annotations.push({
+            xref: 'x', yref: 'paper',
+            x: (descX0 + descX1) / 2, y: 0.95,
+            text: '✕ Descartado',
+            showarrow: false,
+            font: { size: 10, color: '#ef4444', family: 'Inter', weight: 'bold' },
+            bgcolor: isDark ? 'rgba(69, 10, 10, 0.75)' : 'rgba(254, 242, 242, 0.85)',
+            bordercolor: '#ef4444', borderwidth: 1, borderpad: 3
+          });
+
+          annotations.push({
+            xref: 'x', yref: 'paper',
+            x: (mantX0 + mantX1) / 2, y: 0.95,
+            text: '✓ Retido',
+            showarrow: false,
+            font: { size: 10, color: '#10b981', family: 'Inter', weight: 'bold' },
+            bgcolor: isDark ? 'rgba(6, 78, 59, 0.75)' : 'rgba(236, 253, 245, 0.85)',
+            bordercolor: '#10b981', borderwidth: 1, borderpad: 3
+          });
+
+          // Corda Secante [A, B]
           const ptsCorda = [{x: a, y: fa}, {x: x, y: 0}, {x: b, y: fb}].sort((p1, p2) => p1.x - p2.x);
           traces.push({
             x: ptsCorda.map(pt => pt.x),
             y: ptsCorda.map(pt => pt.y),
             type: 'scatter',
             mode: 'lines',
-            name: 'Corda Secante [a, b]',
-            line: { color: '#f59e0b', width: 2.5 }
+            name: 'Corda Secante [A, B]',
+            line: { color: '#f59e0b', width: 2.6 },
+            showlegend: true
           });
 
           // Pontos A e B
           traces.push({
-            x: [a, b],
-            y: [fa, fb],
-            type: 'scatter',
-            mode: 'markers',
-            name: 'Pontos A e B',
-            marker: { color: '#f59e0b', size: 9, symbol: 'circle' }
+            x: [a, b], y: [fa, fb],
+            type: 'scatter', mode: 'markers',
+            name: 'Extremos [a, b]',
+            marker: { color: '#f59e0b', size: 8, symbol: 'circle' },
+            showlegend: false
           });
 
-          // Projeção vertical da nova estimativa x até f(x)
+          // Projeção vertical da raiz x até f(x)
           traces.push({
-            x: [x, x],
-            y: [0, fx],
-            type: 'scatter',
-            mode: 'lines+markers',
+            x: [x, x], y: [0, fx],
+            type: 'scatter', mode: 'lines+markers',
             name: 'Resíduo f(x)',
             line: { color: '#10b981', dash: 'dash', width: 2 },
-            marker: { color: '#10b981', size: 7 }
+            marker: { color: '#10b981', size: 7 },
+            showlegend: true
           });
 
           // Raiz x no eixo y=0
           traces.push({
-            x: [x],
-            y: [0],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Raiz Secante x = ${x.toFixed(5)}`,
-            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [x], y: [0],
+            type: 'scatter', mode: 'markers',
+            name: 'Raiz x_falsa',
+            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: false
           });
 
-          // Anotações
           annotations.push({
             x: a, y: fa,
-            text: `<b>A</b> (${a.toFixed(4)}, ${fa.toFixed(2)})`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#f59e0b',
+            text: `<b>A</b> (${fa >= 0 ? '+' : '−'})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#f59e0b', arrowsize: 1,
             bgcolor: isDark ? '#451a03' : '#fef3c7', bordercolor: '#f59e0b', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#fffbeb' : '#b45309' },
-            ax: -35, ay: -25
+            font: { size: 10, color: isDark ? '#fffbeb' : '#b45309', family: 'JetBrains Mono' },
+            ax: -25, ay: (fa >= 0 ? -20 : 20), borderpad: 3
           });
 
           annotations.push({
             x: b, y: fb,
-            text: `<b>B</b> (${b.toFixed(4)}, ${fb.toFixed(2)})`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#f59e0b',
+            text: `<b>B</b> (${fb >= 0 ? '+' : '−'})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#f59e0b', arrowsize: 1,
             bgcolor: isDark ? '#451a03' : '#fef3c7', bordercolor: '#f59e0b', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#fffbeb' : '#b45309' },
-            ax: 35, ay: -25
+            font: { size: 10, color: isDark ? '#fffbeb' : '#b45309', family: 'JetBrains Mono' },
+            ax: 25, ay: (fb >= 0 ? -20 : 20), borderpad: 3
           });
 
           annotations.push({
             x: x, y: 0,
-            text: `<b>Raiz Secante: x</b> = ${x.toFixed(6)}<br>|f(x)| = ${p.residuo.toExponential(2)}`,
+            text: `<b>x</b> = ${x.toFixed(5)}`,
             showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowcolor: '#10b981',
             bgcolor: isDark ? '#064e3b' : '#d1fae5', bordercolor: '#10b981', borderwidth: 1.5,
-            font: { size: 11, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
-            ax: 0, ay: 45
+            font: { size: 10, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
+            ax: 0, ay: (fx >= 0 ? 32 : -32), borderpad: 3
           });
 
         } else if (modoAtual === "Newton-Raphson") {
@@ -1183,15 +1349,15 @@ HTML_SHADCN = """<!DOCTYPE html>
           const x1 = p.x_prox;
           const fx1 = p.fx_prox;
 
-          // Extensão visual da tangente
-          const dx = Math.abs(x1 - x0);
-          const spanT = Math.max(dx * 0.35, 0.15);
-          const xStart = Math.min(x0, x1) - spanT;
-          const xEnd = Math.max(x0, x1) + spanT;
+          // Reta Tangente rigorosa
+          const dx = (x1 - x0);
+          const extAtras = Math.abs(dx) * 0.25 || 0.05;
+          const extFrente = Math.abs(dx) * 0.15 || 0.03;
+          const xStart = (dx >= 0) ? (x0 - extAtras) : (x0 + extAtras);
+          const xEnd = (dx >= 0) ? (x1 + extFrente) : (x1 - extFrente);
           const yStart = fx0 + dfx0 * (xStart - x0);
           const yEnd = fx0 + dfx0 * (xEnd - x0);
 
-          // Reta Tangente estendida
           const ptsTang = [
             { x: xStart, y: yStart },
             { x: x0, y: fx0 },
@@ -1204,68 +1370,71 @@ HTML_SHADCN = """<!DOCTYPE html>
             y: ptsTang.map(pt => pt.y),
             type: 'scatter',
             mode: 'lines',
-            name: `Reta Tangente (m = ${dfx0.toFixed(3)})`,
-            line: { color: '#f43f5e', width: 2.5 }
+            name: `Reta Tangente (m = ${dfx0.toFixed(2)})`,
+            line: { color: '#f43f5e', width: 2.8 },
+            showlegend: true
           });
 
-          // Linha guia vertical conectando (x0, 0) ao ponto de tangência (x0, fx0)
+          // Linha guia vertical conectando o x atual ao ponto de tangência na curva
           traces.push({
-            x: [x0, x0],
-            y: [0, fx0],
-            type: 'scatter',
-            mode: 'lines',
-            name: `Origem x = ${x0.toFixed(4)}`,
-            line: { color: isDark ? '#71717a' : '#a1a1aa', width: 1.5, dash: 'dot' }
+            x: [x0, x0], y: [0, fx0],
+            type: 'scatter', mode: 'lines+markers',
+            name: `Ponto na Curva`,
+            line: { color: '#38bdf8', width: 2, dash: 'dot' },
+            marker: { color: '#38bdf8', size: 8, symbol: 'circle' },
+            showlegend: false
           });
 
           // Ponto de tangência na curva
           traces.push({
-            x: [x0],
-            y: [fx0],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Ponto Tangente (${x0.toFixed(4)}, ${fx0.toFixed(3)})`,
-            marker: { color: '#38bdf8', size: 9, line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [x0], y: [fx0],
+            type: 'scatter', mode: 'markers',
+            name: `Tangência Pₖ`,
+            marker: { color: '#38bdf8', size: 9, line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: false
           });
 
-          // Projeção vertical da nova raiz x1 até a curva fx1
+          // Ponto x0 na base do eixo
           traces.push({
-            x: [x1, x1],
-            y: [0, fx1],
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: `Novo f(x) = ${fx1.toExponential(2)}`,
-            line: { color: '#10b981', width: 2, dash: 'dash' },
-            marker: { color: '#10b981', size: 7 }
+            x: [x0], y: [0],
+            type: 'scatter', mode: 'markers',
+            name: `xₖ`,
+            marker: { color: isDark ? '#71717a' : '#94a3b8', size: 8, symbol: 'square' },
+            showlegend: false
           });
 
-          // Nova raiz x1 no eixo y=0
+          // Nova raiz x1 calculada na interseção da tangente com o eixo y=0
           traces.push({
-            x: [x1],
-            y: [0],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Nova Raiz x = ${x1.toFixed(6)}`,
-            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [x1], y: [0],
+            type: 'scatter', mode: 'markers',
+            name: `Nova Raiz xₖ₊₁`,
+            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: true
           });
 
-          // Anotações
+          // Posicionamento inteligente para evitar colisão entre P_k e x_{k+1}
+          const closePoints = Math.abs(x1 - x0) < 0.05;
+          const ayTang = (fx0 >= 0) ? -24 : 24;
+          const axTang = closePoints ? (dx >= 0 ? -32 : 32) : 0;
+          const ayRoot = (fx0 >= 0) ? 32 : -32;
+          const axRoot = closePoints ? (dx >= 0 ? 32 : -32) : 0;
+
           annotations.push({
             x: x0, y: fx0,
-            text: `<b>Tangência (x<sub>k</sub>, f(x<sub>k</sub>))</b><br>x = ${x0.toFixed(5)}<br>f'(x) = ${dfx0.toFixed(4)}`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#38bdf8',
+            text: `<b>Pₖ</b> (${x0.toFixed(4)}, ${fx0.toFixed(2)})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#38bdf8', arrowsize: 1,
             bgcolor: isDark ? '#082f49' : '#e0f2fe', bordercolor: '#38bdf8', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#f0f9ff' : '#0369a1' },
-            ax: -45, ay: -35
+            font: { size: 10, color: isDark ? '#f0f9ff' : '#0369a1', family: 'JetBrains Mono' },
+            ax: axTang, ay: ayTang, borderpad: 3
           });
 
           annotations.push({
             x: x1, y: 0,
-            text: `<b>Nova Raiz: x<sub>k+1</sub></b> = ${x1.toFixed(6)}<br>|f(x<sub>k+1</sub>)| = ${p.residuo.toExponential(2)}`,
+            text: `<b>xₖ₊₁</b> = ${x1.toFixed(5)}`,
             showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowcolor: '#10b981',
             bgcolor: isDark ? '#064e3b' : '#d1fae5', bordercolor: '#10b981', borderwidth: 1.5,
-            font: { size: 11, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
-            ax: 0, ay: 45
+            font: { size: 10, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
+            ax: axRoot, ay: ayRoot, borderpad: 3
           });
 
         } else if (modoAtual === "Secante") {
@@ -1276,26 +1445,22 @@ HTML_SHADCN = """<!DOCTYPE html>
           const xm = p.x;
           const fxm = p.fx;
 
-          // Inclinação da secante
           const den = xd - xe;
           const mSec = (Math.abs(den) > 1e-12) ? (fxd - fxe) / den : 0;
 
-          // Extensão suave da reta secante
           const allXSec = [xe, xd, xm];
-          const xMinS = Math.min(...allXSec);
-          const xMaxS = Math.max(...allXSec);
-          const spanS = Math.max((xMaxS - xMinS) * 0.25, 0.15);
-          const xStart = xMinS - spanS;
-          const xEnd = xMaxS + spanS;
-          const yStart = fxe + mSec * (xStart - xe);
-          const yEnd = fxe + mSec * (xEnd - xe);
+          const minX = Math.min(...allXSec);
+          const maxX = Math.max(...allXSec);
+          const spanS = Math.max((maxX - minX) * 0.18, 0.05);
+          const xStart = minX - spanS;
+          const xEnd = maxX + spanS;
 
           const ptsSec = [
-            { x: xStart, y: yStart },
+            { x: xStart, y: fxe + mSec * (xStart - xe) },
             { x: xe, y: fxe },
             { x: xm, y: 0 },
             { x: xd, y: fxd },
-            { x: xEnd, y: yEnd }
+            { x: xEnd, y: fxe + mSec * (xEnd - xe) }
           ].sort((a, b) => a.x - b.x);
 
           traces.push({
@@ -1304,90 +1469,107 @@ HTML_SHADCN = """<!DOCTYPE html>
             type: 'scatter',
             mode: 'lines',
             name: `Reta Secante`,
-            line: { color: '#a855f7', width: 2.5 }
+            line: { color: '#a855f7', width: 2.6 },
+            showlegend: true
           });
 
-          // Pontos Base P0 e P1
+          // Linhas verticais pontilhadas nos pontos base
           traces.push({
-            x: [xe, xd],
-            y: [fxe, fxd],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Pontos Base Secante`,
-            marker: { color: '#a855f7', size: 9, symbol: 'circle', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [xe, xe], y: [0, fxe],
+            type: 'scatter', mode: 'lines',
+            line: { color: '#8b5cf6', width: 1.5, dash: 'dot' },
+            hoverinfo: 'none', showlegend: false
           });
 
-          // Projeção vertical até o novo f(xm)
           traces.push({
-            x: [xm, xm],
-            y: [0, fxm],
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: `f(xm) = ${fxm.toExponential(2)}`,
-            line: { color: '#10b981', width: 2, dash: 'dash' },
-            marker: { color: '#10b981', size: 7 }
+            x: [xd, xd], y: [0, fxd],
+            type: 'scatter', mode: 'lines',
+            line: { color: '#a855f7', width: 1.5, dash: 'dot' },
+            hoverinfo: 'none', showlegend: false
+          });
+
+          // Pontos Base Pₖ₋₁ e Pₖ
+          traces.push({
+            x: [xe], y: [fxe],
+            type: 'scatter', mode: 'markers',
+            name: `Pₖ₋₁`,
+            marker: { color: '#8b5cf6', size: 9, symbol: 'circle', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: true
+          });
+
+          traces.push({
+            x: [xd], y: [fxd],
+            type: 'scatter', mode: 'markers',
+            name: `Pₖ`,
+            marker: { color: '#a855f7', size: 9, symbol: 'circle', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: true
           });
 
           // Raiz xm no eixo y=0
           traces.push({
-            x: [xm],
-            y: [0],
-            type: 'scatter',
-            mode: 'markers',
-            name: `Nova Raiz xm = ${xm.toFixed(5)}`,
-            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } }
+            x: [xm], y: [0],
+            type: 'scatter', mode: 'markers',
+            name: `Nova Raiz xₖ₊₁`,
+            marker: { color: '#10b981', size: 12, symbol: 'diamond', line: { color: isDark ? '#ffffff' : '#000000', width: 1.5 } },
+            showlegend: true
           });
 
-          // Anotações
+          // Anotações sem sobreposição
+          const ayXe = (fxe >= 0) ? -22 : 22;
+          const ayXd = (fxd >= 0) ? -22 : 22;
+          const closeBase = Math.abs(xd - xe) < 0.08;
+          const axXe = closeBase ? (xe < xd ? -28 : 28) : 0;
+          const axXd = closeBase ? (xd > xe ? 28 : -28) : 0;
+
           annotations.push({
             x: xe, y: fxe,
-            text: `<b>P<sub>0</sub></b> (${xe.toFixed(4)}, ${fxe.toFixed(2)})`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#a855f7',
-            bgcolor: isDark ? '#3b0764' : '#f3e8ff', bordercolor: '#a855f7', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#faf5ff' : '#7e22ce' },
-            ax: -35, ay: -25
+            text: `<b>Pₖ₋₁</b> (${xe.toFixed(4)})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#8b5cf6', arrowsize: 1,
+            bgcolor: isDark ? '#3b0764' : '#f3e8ff', bordercolor: '#8b5cf6', borderwidth: 1,
+            font: { size: 10, color: isDark ? '#faf5ff' : '#7e22ce', family: 'JetBrains Mono' },
+            ax: axXe, ay: ayXe, borderpad: 3
           });
 
           annotations.push({
             x: xd, y: fxd,
-            text: `<b>P<sub>1</sub></b> (${xd.toFixed(4)}, ${fxd.toFixed(2)})`,
-            showarrow: true, arrowhead: 2, arrowcolor: '#a855f7',
+            text: `<b>Pₖ</b> (${xd.toFixed(4)})`,
+            showarrow: true, arrowhead: 2, arrowcolor: '#a855f7', arrowsize: 1,
             bgcolor: isDark ? '#3b0764' : '#f3e8ff', bordercolor: '#a855f7', borderwidth: 1,
-            font: { size: 10, color: isDark ? '#faf5ff' : '#7e22ce' },
-            ax: 35, ay: -25
+            font: { size: 10, color: isDark ? '#faf5ff' : '#7e22ce', family: 'JetBrains Mono' },
+            ax: axXd, ay: ayXd, borderpad: 3
           });
 
           annotations.push({
             x: xm, y: 0,
-            text: `<b>Raiz Secante: x<sub>m</sub></b> = ${xm.toFixed(6)}<br>|f(x<sub>m</sub>)| = ${p.residuo.toExponential(2)}`,
+            text: `<b>xₖ₊₁</b> = ${xm.toFixed(5)}`,
             showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowcolor: '#10b981',
             bgcolor: isDark ? '#064e3b' : '#d1fae5', bordercolor: '#10b981', borderwidth: 1.5,
-            font: { size: 11, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
-            ax: 0, ay: 45
+            font: { size: 10, color: isDark ? '#ecfdf5' : '#047857', family: 'JetBrains Mono' },
+            ax: 0, ay: 32, borderpad: 3
           });
         }
       }
 
-      // 4. Layout e Enquadramento Inteligente (Smart Auto-Framing)
+      // 5. Layout com Legenda Horizontal no Topo (Elimina bloqueio da curva)
       const layout = {
         paper_bgcolor: bgColor,
         plot_bgcolor: plotBg,
         font: { family: 'Inter, sans-serif', color: txtColor, size: 11 },
-        margin: { l: 55, r: 35, t: 30, b: 45 },
+        margin: { l: 55, r: 35, t: 45, b: 45 },
         xaxis: { gridcolor: gridColor, zeroline: false, title: { text: 'x', font: { size: 12, color: txtColor } } },
         yaxis: { gridcolor: gridColor, zeroline: false, title: { text: 'f(x)', font: { size: 12, color: txtColor } } },
         legend: {
-          x: 0.02, y: 0.98, xanchor: 'left', yanchor: 'top',
-          bgcolor: isDark ? 'rgba(9, 9, 11, 0.85)' : 'rgba(255, 255, 255, 0.85)',
-          bordercolor: isDark ? '#27272a' : '#e4e4e7',
-          borderwidth: 1,
-          font: { size: 10 }
+          orientation: 'h',
+          x: 0.5, xanchor: 'center',
+          y: 1.13, yanchor: 'bottom',
+          bgcolor: 'transparent',
+          font: { size: 11, color: txtColor }
         },
         annotations: annotations,
         shapes: shapes
       };
 
-      // Se o modo de Zoom estiver em FOCO e houver passo ativo:
+      // 6. Enquadramento Dinâmico Proporcional (Smart Auto-Framing)
       if (modoZoom === 'foco' && idx > 0 && idx <= dadosSimulacao.passos.length) {
         const p = dadosSimulacao.passos[idx - 1];
         const ptsFoco = [];
@@ -1403,12 +1585,12 @@ HTML_SHADCN = """<!DOCTYPE html>
           ptsFoco.push({ x: p.x, y: p.fx || 0 });
           ptsFoco.push({ x: p.x, y: 0 });
           ptsFoco.push({ x: p.x_prox, y: 0 });
-          ptsFoco.push({ x: p.x_prox, y: p.fx_prox || 0 });
+          if (p.fx_prox !== undefined) ptsFoco.push({ x: p.x_prox, y: p.fx_prox });
         } else if (modoAtual === "Secante") {
           ptsFoco.push({ x: p.xe, y: p.fxe || 0 });
           ptsFoco.push({ x: p.xd, y: p.fxd || 0 });
           ptsFoco.push({ x: p.x, y: 0 });
-          ptsFoco.push({ x: p.x, y: p.fx || 0 });
+          if (p.fx !== undefined) ptsFoco.push({ x: p.x, y: p.fx });
         }
 
         const xs = ptsFoco.map(pt => pt.x).filter(v => v !== undefined && !isNaN(v));
@@ -1420,11 +1602,12 @@ HTML_SHADCN = """<!DOCTYPE html>
           const yMinF = Math.min(...ys);
           const yMaxF = Math.max(...ys);
 
-          const spanX = Math.max(xMaxF - xMinF, 0.12);
-          const spanY = Math.max(yMaxF - yMinF, 0.12);
+          // Span proporcional com limite mínimo inteligente
+          const spanX = Math.max(xMaxF - xMinF, 0.05);
+          const spanY = Math.max(yMaxF - yMinF, 0.05);
 
-          layout.xaxis.range = [xMinF - spanX * 0.35, xMaxF + spanX * 0.35];
-          layout.yaxis.range = [yMinF - spanY * 0.35, yMaxF + spanY * 0.35];
+          layout.xaxis.range = [xMinF - spanX * 0.28, xMaxF + spanX * 0.28];
+          layout.yaxis.range = [yMinF - spanY * 0.28, yMaxF + spanY * 0.28];
         }
       }
 
@@ -1493,8 +1676,8 @@ HTML_SHADCN = """<!DOCTYPE html>
           paper_bgcolor: 'transparent',
           plot_bgcolor: 'transparent',
           font: { family: 'Inter, sans-serif', color: txtColor, size: 10 },
-          margin: { l: 30, r: 10, t: 10, b: 25 },
-          xaxis: { gridcolor: gridColor },
+          margin: { l: 30, r: 10, t: 10, b: 38 },
+          xaxis: { gridcolor: gridColor, tickangle: -20 },
           yaxis: { gridcolor: gridColor, title: '' },
           showlegend: false
         };
@@ -1514,8 +1697,8 @@ HTML_SHADCN = """<!DOCTYPE html>
           paper_bgcolor: 'transparent',
           plot_bgcolor: 'transparent',
           font: { family: 'Inter, sans-serif', color: txtColor, size: 10 },
-          margin: { l: 45, r: 10, t: 10, b: 25 },
-          xaxis: { gridcolor: gridColor },
+          margin: { l: 45, r: 10, t: 10, b: 38 },
+          xaxis: { gridcolor: gridColor, tickangle: -20 },
           yaxis: { gridcolor: gridColor, title: 'ms' },
           showlegend: false
         };
@@ -1566,7 +1749,8 @@ class ServidorSimuladorHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        if self.path == "/" or self.path == "/index.html":
+        caminho = self.path.split('?')[0]
+        if caminho in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -1619,7 +1803,7 @@ class ServidorSimuladorHandler(http.server.BaseHTTPRequestHandler):
                 margem = span * 0.25 if span > 0 else 1.5
                 x_min = min(todos_x) - margem
                 x_max = max(todos_x) + margem
-                x_vals = np.linspace(x_min, x_max, 350).tolist()
+                x_vals = np.linspace(x_min, x_max, 800).tolist()
                 y_vals = []
                 for xv in x_vals:
                     try:

@@ -50,6 +50,19 @@ def gerar_passos_bisseccao(f, a, b, tol=1e-6, max_iter=100):
         fx = f(x)
         res = abs(fx)
 
+        if fa * fx < 0:
+            sub_mantido = [a_cur, x]
+            sub_descartado = [x, b_cur]
+            lado = "esquerda [a, x_m]"
+            prox_a, prox_b = a_cur, x
+            prox_fa, prox_fb = fa, fx
+        else:
+            sub_mantido = [x, b_cur]
+            sub_descartado = [a_cur, x]
+            lado = "direita [x_m, b]"
+            prox_a, prox_b = x, b_cur
+            prox_fa, prox_fb = fx, fb
+
         passos.append({
             'iter': i,
             'a': a_cur,
@@ -59,18 +72,17 @@ def gerar_passos_bisseccao(f, a, b, tol=1e-6, max_iter=100):
             'x': x,
             'fx': fx,
             'residuo': res,
+            'sub_mantido': sub_mantido,
+            'sub_descartado': sub_descartado,
+            'lado': lado,
             'detalhes': f"[{a_cur:.6f}, {b_cur:.6f}]"
         })
 
         if res < tol:
             return passos, "Convergência atingida"
 
-        if fa * fx < 0:
-            b_cur = x
-            fb = fx
-        else:
-            a_cur = x
-            fa = fx
+        a_cur, b_cur = prox_a, prox_b
+        fa, fb = prox_fa, prox_fb
 
     return passos, "Limite de iterações atingido"
 
@@ -99,6 +111,15 @@ def gerar_passos_falsa_posicao(f, a, b, tol=1e-6, max_iter=100):
         fx = f(x)
         res = abs(fx)
 
+        if fa * fx < 0:
+            sub_mantido = [a_cur, x]
+            sub_descartado = [x, b_cur]
+            subst = 'b'
+        else:
+            sub_mantido = [x, b_cur]
+            sub_descartado = [a_cur, x]
+            subst = 'a'
+
         passos.append({
             'iter': i,
             'a': a_cur,
@@ -108,7 +129,10 @@ def gerar_passos_falsa_posicao(f, a, b, tol=1e-6, max_iter=100):
             'x': x,
             'fx': fx,
             'residuo': res,
-            'detalhes': f"Secante entre [{a_cur:.4f}, {b_cur:.4f}]"
+            'sub_mantido': sub_mantido,
+            'sub_descartado': sub_descartado,
+            'substituido': subst,
+            'detalhes': f"Corda [{a_cur:.4f}, {b_cur:.4f}]"
         })
 
         if res < tol:
